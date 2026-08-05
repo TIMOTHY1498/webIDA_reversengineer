@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>WebIDA | Timedoor YCWC 2026</title>
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap"
+    rel="stylesheet">
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <!-- Main Stylesheet -->
+  <link rel="stylesheet" href="styles.css">
+</head>
+
+<body class="classic-light">
+  <!-- Top Application Frame -->
+  <div class="app-container">
+    <!-- Header / Menu Bar -->
+    <header class="app-header">
+      <div class="header-left">
+        <div class="logo">
+          <span class="logo-text">WebIDA</span>
+        </div>
+        <nav class="menu-bar">
+          <div class="menu-item">
+            <span class="menu-label">File</span>
+            <div class="dropdown-content">
+              <label for="pe-file-input" class="dropdown-action">
+                <i data-lucide="folder-open"></i> Load PE File...
+              </label>
+              <div class="dropdown-divider"></div>
+              <button class="dropdown-action" id="reset-button">
+                <i data-lucide="refresh-cw"></i> Reset Workspace
+              </button>
+            </div>
+          </div>
+          <div class="menu-item">
+            <span class="menu-label">About</span>
+            <div class="dropdown-content2">
+              <div class="dropdown-action">
+                <p> <b>Web Reverse Engineer Tool</b></p>
+                <p> Build for Timedoor YCWC 2026</p>
+                <p> by @timothy1498</p>
+              </div>
+            </div>
+          </div>
+        </nav>
+      </div>
+
+      <div class="header-right">
+        <!-- Load File trigger -->
+        <input type="file" id="pe-file-input" style="display: none;" accept=".exe,.dll,.sys,.bin,.scr,.ocx">
+        <label for="pe-file-input" class="btn btn-primary" id="load-file-btn">
+          <i data-lucide="upload"></i> Load PE
+        </label>
+      </div>
+    </header>
+
+    <!-- Toolbar / Quick Action Bar -->
+    <div class="app-toolbar">
+      <div class="toolbar-section file-details-section">
+        <span class="label">Loaded File:</span>
+        <span id="toolbar-filename" class="value">NULL</span>
+        <span class="divider">|</span>
+        <span class="label">Format:</span>
+        <span id="toolbar-filetype" class="value">NULL</span>
+        <span class="divider">|</span>
+        <span class="label">Entry Point:</span>
+        <span id="toolbar-entrypoint" class="value-code">0x0</span>
+      </div>
+      <div class="toolbar-section search-section">
+        <i data-lucide="search" class="search-icon-small"></i>
+        <input type="text" id="global-search" placeholder="Search functions, strings, or imports...">
+      </div>
+    </div>
+
+    <!-- Section Navigation Band -->
+    <div class="section-band-container">
+      <div class="section-band-title">Sections:</div>
+      <div class="section-band-wrapper">
+        <div id="section-band" class="section-band">
+          <!-- Dynamic rendering from JS -->
+        </div>
+      </div>
+    </div>
+
+    <!-- Main Workspace Area -->
+    <div class="workspace-layout">
+
+      <!-- Left Sidebar: Functions list -->
+      <aside class="sidebar-left">
+        <div class="sidebar-header">
+          <div class="sidebar-title">
+            <i data-lucide="list-filter" class="sidebar-icon"></i>
+            <span>Functions window</span>
+          </div>
+          <span class="sidebar-count" id="functions-count">0</span>
+        </div>
+        <div class="sidebar-filter">
+          <input type="text" id="functions-search" placeholder="Quick filter functions...">
+        </div>
+        <div class="sidebar-content-wrapper">
+          <table class="functions-table">
+            <thead>
+              <tr>
+                <th class="col-func-name">Function Name</th>
+                <th class="col-segment">Segment</th>
+                <th class="col-address">Start Address</th>
+                <th class="col-size">Size</th>
+              </tr>
+            </thead>
+            <tbody id="functions-list">
+              <!-- Dynamic content -->
+            </tbody>
+          </table>
+        </div>
+      </aside>
+
+      <!-- Central Tabbed Workspace -->
+
+
+
+      <!-- JavaScript logic files -->
+      <script src="./pefile_js/main.js"></script>
+
+</body>
+
+</html>
