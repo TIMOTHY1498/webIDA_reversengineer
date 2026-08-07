@@ -982,6 +982,34 @@ body {
   transition: all 0.15s;
 }
 
+.dll-btn {
+  width: 100%;
+  padding: 8px 12px;
+  border: none;
+  background: none;
+  text-align: left;
+  border-radius: 4px;
+  font-family: var(--font-ui);
+  color: var(--text-main);
+  cursor: pointer;
+  font-weight: 500;
+  transition: all 0.15s;
+}
+
+.dll-btn.active {
+  width: 100%;
+  padding: 8px 12px;
+  border: none;
+  background: none;
+  text-align: left;
+  border-radius: 4px;
+  font-family: var(--font-ui);
+  color: var(--text-main);
+  cursor: pointer;
+  font-weight: 500;
+  transition: all 0.15s;
+}
+
 .header-nav-btn:hover {
   background-color: var(--bg-hover);
 }

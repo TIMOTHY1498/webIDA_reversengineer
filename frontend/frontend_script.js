@@ -109,7 +109,6 @@ function populateViews(pefile) {
     lucide.createIcons();
 }
 
-// 1. Hex Viewer Renderer
 function renderHexViewer(pefile) {
     const view = pefile.dataView;
     const limit = Math.min(view.byteLength, 1024); // Display first 1024 bytes
@@ -146,7 +145,6 @@ function renderHexViewer(pefile) {
     document.getElementById('hex-ascii-col').innerHTML = asciiHTML;
 }
 
-// 2. PE Headers Renderer
 function renderPEHeaders(pefile, sectionName) {
     const tbody = document.getElementById('headers-fields-list');
     if (!tbody) return;
@@ -259,7 +257,6 @@ function renderPEHeaders(pefile, sectionName) {
     });
 }
 
-// 3. Imports & Exports Parser/Renderer
 function renderImportsAndExports(pefile) {
     const dllListEl = document.getElementById('imports-dll-list');
     const importsListEl = document.getElementById('imports-list');
@@ -443,74 +440,73 @@ function renderImportsAndExports(pefile) {
     }
 }
 
-// 4. Disassembly (IDA View) Renderer
 function renderDisassembly(pefile) {
-    const entryPointRVA = pefile.exe.newHeader.optionalHeader.addressOfEntryPoint;
-    const imageBase = pefile.exe.newHeader.optionalHeader.imageBase;
-    const entryPointVA = imageBase + entryPointRVA;
+    // const entryPointRVA = pefile.exe.newHeader.optionalHeader.addressOfEntryPoint;
+    // const imageBase = pefile.exe.newHeader.optionalHeader.imageBase;
+    // const entryPointVA = imageBase + entryPointRVA;
 
-    document.getElementById('disasm-address').textContent = '0x' + entryPointVA.toString(16).toUpperCase();
+    // document.getElementById('disasm-address').textContent = '0x' + entryPointVA.toString(16).toUpperCase();
 
-    const gutterEl = document.getElementById('disasm-gutter');
-    const contentEl = document.getElementById('disasm-content');
-    if (!gutterEl || !contentEl) return;
+    // const gutterEl = document.getElementById('disasm-gutter');
+    // const contentEl = document.getElementById('disasm-content');
+    // if (!gutterEl || !contentEl) return;
 
-    let rawOffset = rvaToOffset(pefile, entryPointRVA);
-    const view = pefile.dataView;
+    // let rawOffset = rvaToOffset(pefile, entryPointRVA);
+    // const view = pefile.dataView;
 
-    let gutterHTML = "";
-    let contentHTML = "";
+    // let gutterHTML = "";
+    // let contentHTML = "";
 
-    const mockInstructions = [
-        { bytes: [0x48, 0x83, 0xEC, 0x28], mnemonic: "sub", args: "rsp, 28h" },
-        { bytes: [0xE8, 0x20, 0x01, 0x00, 0x00], mnemonic: "call", args: "init_security_cookie" },
-        { bytes: [0x48, 0x83, 0xC4, 0x28], mnemonic: "add", args: "rsp, 28h" },
-        { bytes: [0xE9, 0x54, 0x00, 0x00, 0x00], mnemonic: "jmp", args: "mainCRTStartup" },
-        { bytes: [0xCC], mnemonic: "int", args: "3" },
-        { bytes: [0xCC], mnemonic: "int", args: "3" },
-        { bytes: [0x48, 0x89, 0x5C, 0x24, 0x08], mnemonic: "mov", args: "[rsp+8], rbx" },
-        { bytes: [0x57], mnemonic: "push", args: "rdi" },
-        { bytes: [0x48, 0x83, 0xEC, 0x20], mnemonic: "sub", args: "rsp, 20h" },
-        { bytes: [0x48, 0x8B, 0xD9], mnemonic: "mov", args: "rbx, rcx" },
-        { bytes: [0x33, 0xFF], mnemonic: "xor", args: "edi, edi" },
-        { bytes: [0x38, 0x01], mnemonic: "cmp", args: "[rcx], al" },
-        { bytes: [0x74, 0x08], mnemonic: "jz", args: "loc_exit" },
-        { bytes: [0x8B, 0x01], mnemonic: "mov", args: "eax, [rcx]" },
-        { bytes: [0xFF, 0x15, 0x80, 0x20, 0x00, 0x00], mnemonic: "call", args: "qword ptr [__imp_GetVersion]" },
-        { bytes: [0x48, 0x8B, 0x5C, 0x24, 0x30], mnemonic: "mov", args: "rbx, [rsp+30h]" },
-        { bytes: [0x48, 0x83, 0xC4, 0x20], mnemonic: "add", args: "rsp, 20h" },
-        { bytes: [0x5F], mnemonic: "pop", args: "rdi" },
-        { bytes: [0xC3], mnemonic: "retn", args: "" }
-    ];
+    // const mockInstructions = [
+    //     { bytes: [0x48, 0x83, 0xEC, 0x28], mnemonic: "sub", args: "rsp, 28h" },
+    //     { bytes: [0xE8, 0x20, 0x01, 0x00, 0x00], mnemonic: "call", args: "init_security_cookie" },
+    //     { bytes: [0x48, 0x83, 0xC4, 0x28], mnemonic: "add", args: "rsp, 28h" },
+    //     { bytes: [0xE9, 0x54, 0x00, 0x00, 0x00], mnemonic: "jmp", args: "mainCRTStartup" },
+    //     { bytes: [0xCC], mnemonic: "int", args: "3" },
+    //     { bytes: [0xCC], mnemonic: "int", args: "3" },
+    //     { bytes: [0x48, 0x89, 0x5C, 0x24, 0x08], mnemonic: "mov", args: "[rsp+8], rbx" },
+    //     { bytes: [0x57], mnemonic: "push", args: "rdi" },
+    //     { bytes: [0x48, 0x83, 0xEC, 0x20], mnemonic: "sub", args: "rsp, 20h" },
+    //     { bytes: [0x48, 0x8B, 0xD9], mnemonic: "mov", args: "rbx, rcx" },
+    //     { bytes: [0x33, 0xFF], mnemonic: "xor", args: "edi, edi" },
+    //     { bytes: [0x38, 0x01], mnemonic: "cmp", args: "[rcx], al" },
+    //     { bytes: [0x74, 0x08], mnemonic: "jz", args: "loc_exit" },
+    //     { bytes: [0x8B, 0x01], mnemonic: "mov", args: "eax, [rcx]" },
+    //     { bytes: [0xFF, 0x15, 0x80, 0x20, 0x00, 0x00], mnemonic: "call", args: "qword ptr [__imp_GetVersion]" },
+    //     { bytes: [0x48, 0x8B, 0x5C, 0x24, 0x30], mnemonic: "mov", args: "rbx, [rsp+30h]" },
+    //     { bytes: [0x48, 0x83, 0xC4, 0x20], mnemonic: "add", args: "rsp, 20h" },
+    //     { bytes: [0x5F], mnemonic: "pop", args: "rdi" },
+    //     { bytes: [0xC3], mnemonic: "retn", args: "" }
+    // ];
 
-    let currentVA = entryPointVA;
+    // let currentVA = entryPointVA;
 
-    mockInstructions.forEach((inst, index) => {
-        const addrStr = currentVA.toString(16).toUpperCase();
-        gutterHTML += `<div>${addrStr}</div>`;
+    // mockInstructions.forEach((inst, index) => {
+    //     const addrStr = currentVA.toString(16).toUpperCase();
+    //     gutterHTML += `<div>${addrStr}</div>`;
 
-        let bytesArray = [];
-        for (let b = 0; b < inst.bytes.length; b++) {
-            if (rawOffset < view.byteLength) {
-                bytesArray.push(view.getUint8(rawOffset++));
-            } else {
-                bytesArray.push(inst.bytes[b]);
-            }
-        }
+    //     let bytesArray = [];
+    //     for (let b = 0; b < inst.bytes.length; b++) {
+    //         if (rawOffset < view.byteLength) {
+    //             bytesArray.push(view.getUint8(rawOffset++));
+    //         } else {
+    //             bytesArray.push(inst.bytes[b]);
+    //         }
+    //     }
 
-        const bytesStr = bytesArray.map(b => b.toString(16).padStart(2, '0').toUpperCase()).join(" ");
-        const paddedBytes = bytesStr.padEnd(20, ' ');
+    //     const bytesStr = bytesArray.map(b => b.toString(16).padStart(2, '0').toUpperCase()).join(" ");
+    //     const paddedBytes = bytesStr.padEnd(20, ' ');
 
-        contentHTML += `<span class="asm-bytes">${paddedBytes}</span> <span class="asm-mnemonic">${inst.mnemonic.padEnd(8, ' ')}</span><span class="asm-args">${inst.args}</span>\n`;
+    //     contentHTML += `<span class="asm-bytes">${paddedBytes}</span> <span class="asm-mnemonic">${inst.mnemonic.padEnd(8, ' ')}</span><span class="asm-args">${inst.args}</span>\n`;
 
-        currentVA += bytesArray.length;
-    });
+    //     currentVA += bytesArray.length;
+    // });
 
-    gutterEl.innerHTML = gutterHTML;
-    contentEl.innerHTML = contentHTML;
+    // gutterEl.innerHTML = gutterHTML;
+    // contentEl.innerHTML = contentHTML;
+    return;
 }
 
-// 5. AI Assistant logic (context-aware simulated backend)
 function initAIAssistant(pefile) {
     const terminal = document.getElementById('ai-terminal-output');
     const promptInput = document.getElementById('ai-prompt-input');
@@ -612,4 +608,8 @@ Ask me to analyze functions, look up imports/exports, or check security mitigati
             sendCustomPrompt();
         }
     });
+}
+
+function renderSummary(pefile) {
+    return;
 }
