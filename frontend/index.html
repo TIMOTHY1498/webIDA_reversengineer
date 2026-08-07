@@ -123,7 +123,171 @@
 
       <!-- Central Tabbed Workspace -->
 
+      <main class="workspace-main">
+        <!-- Tabs Navigation Header -->
+        <div class="tabs-header">
+          <button class="tab-btn active" data-tab="disasm">
+            <i data-lucide="cpu"></i> IDA View
+          </button>
+          <button class="tab-btn" data-tab="hex">
+            <i data-lucide="binary"></i> Hex Viewer
+          </button>
+          <button class="tab-btn" data-tab="headers">
+            <i data-lucide="file-text"></i> PE Headers
+          </button>
+          <button class="tab-btn" data-tab="imports">
+            <i data-lucide="arrow-left-right"></i> Imports & Exports
+          </button>
+          <button class="tab-btn" data-tab="ai">
+            <i data-lucide="sparkles"></i> AI Assistant
+          </button>
+        </div>
 
+        <!-- Tabs Content Panels -->
+        <div class="tabs-content">
+
+          <!-- 1. Disassembly View -->
+          <div class="tab-panel active" id="tab-disasm">
+            <div class="code-view-container">
+              <div class="view-header">
+                <span>Disassembly View</span>
+                <span class="address-marker" id="disasm-address">0x00000000</span>
+              </div>
+              <div class="code-editor-layout">
+                <div class="line-gutter" id="disasm-gutter"></div>
+                <pre class="assembly-content" id="disasm-content"></pre>
+              </div>
+            </div>
+          </div>
+
+          <!-- 2. Hex Viewer -->
+          <div class="tab-panel" id="tab-hex">
+            <div class="hex-view-container">
+              <div class="view-header">
+                <span>Hex Editor</span>
+                <span class="address-marker" id="hex-address">0x00000000</span>
+              </div>
+              <div class="hex-editor-layout">
+                <div class="hex-addresses" id="hex-addresses-col"></div>
+                <div class="hex-bytes-grid" id="hex-bytes-grid"></div>
+                <div class="hex-ascii" id="hex-ascii-col"></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 3. PE Headers -->
+          <div class="tab-panel" id="tab-headers">
+            <div class="headers-container">
+              <aside class="headers-sidebar">
+                <button class="header-nav-btn active" data-section="dos-header">DOS Header</button>
+                <button class="header-nav-btn" data-section="file-header">File Header</button>
+                <button class="header-nav-btn" data-section="optional-header">Optional Header</button>
+                <button class="header-nav-btn" data-section="data-directories">Data Directories</button>
+                <button class="header-nav-btn" data-section="section-headers">Section Headers</button>
+              </aside>
+              <div class="headers-content" id="headers-content-view">
+                <div class="header-sec-title">DOS Header</div>
+                <table class="header-table">
+                  <thead>
+                    <tr>
+                      <th class="col-field">Field</th>
+                      <th class="col-val">Value</th>
+                      <th class="col-desc">Description</th>
+                    </tr>
+                  </thead>
+                  <tbody id="headers-fields-list">
+                    <!-- Dynamic content -->
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+          <!-- 4. Imports & Exports -->
+          <div class="tab-panel" id="tab-imports">
+            <div class="imports-layout">
+              <aside class="imports-sidebar">
+                <div class="mini-sidebar-header">Imported DLLs</div>
+                <div class="dll-list" id="imports-dll-list"></div>
+              </aside>
+              <div class="imports-main">
+                <div class="mini-sidebar-header d-flex-between">
+                  <span>Imported Functions</span>
+                  <span class="count-badge" id="imports-count">0 functions</span>
+                </div>
+                <div class="table-wrapper">
+                  <table class="imports-table">
+                    <thead>
+                      <tr>
+                        <th>Address</th>
+                        <th>Name / Ordinal</th>
+                        <th>Hint</th>
+                      </tr>
+                    </thead>
+                    <tbody id="imports-list"></tbody>
+                  </table>
+                </div>
+                <div class="exports-section">
+                  <div class="mini-sidebar-header d-flex-between">
+                    <span>Exported Functions</span>
+                    <span class="count-badge" id="exports-count">0 functions</span>
+                  </div>
+                  <div class="table-wrapper">
+                    <table class="exports-table">
+                      <thead>
+                        <tr>
+                          <th>Address</th>
+                          <th>Name</th>
+                          <th>Ordinal</th>
+                        </tr>
+                      </thead>
+                      <tbody id="exports-list"></tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+
+          <!-- 7. AI Assistant -->
+          <div class="tab-panel" id="tab-ai">
+            <div class="ai-container">
+              <aside class="ai-sidebar">
+                <div class="mini-sidebar-header">AI Actions</div>
+                <div class="ai-actions-list">
+                  <button class="btn btn-secondary ai-action-btn" id="ai-explain-func">
+                    <i data-lucide="help-circle"></i> Explain Function
+                  </button>
+                  <button class="btn btn-secondary ai-action-btn" id="ai-find-vuln">
+                    <i data-lucide="shield-alert"></i> Find Vulnerabilities
+                  </button>
+                  <button class="btn btn-secondary ai-action-btn" id="ai-find-crypto">
+                    <i data-lucide="key"></i> Scan for Crypto
+                  </button>
+                </div>
+                <div class="ai-context-box">
+                  <div class="context-title">Selected Target</div>
+                  <div class="context-value" id="ai-selected-target">None</div>
+                </div>
+              </aside>
+              <div class="ai-main">
+                <div class="ai-terminal-output" id="ai-terminal-output">
+                  <div class="terminal-line system-line">AI Assistant initialized. Choose an action or enter a custom
+                    prompt.</div>
+                </div>
+                <div class="ai-input-bar">
+                  <input type="text" id="ai-prompt-input" placeholder="Ask AI about selected code...">
+                  <button class="btn btn-primary" id="ai-send-btn">
+                    <i data-lucide="send"></i>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </main>
 
       <!-- JavaScript logic files -->
       <script src="./pefile_js/main.js"></script>
