@@ -13,15 +13,7 @@ This tool allows you to view the headers of a PE file in the browser. It is a wo
 ## Expected Features 
 
 - Working AI Assistant
-- Working Disassembly Viewer
-- Working Hex Viewer
-- Working Sections Viewer
-- Working PE Headers Viewer
-- Working File Upload
-- Working Drag and Drop
-- Working File Save
-- Working File Download
-- Working File Share
+- Working dissasmbler viewer
 
 ## Tech Stack
 
