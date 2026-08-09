@@ -79,12 +79,10 @@ function populateViews(pefile) {
     renderDisassembly(pefile);
     initAIAssistant(pefile);
 
-    // Register PE Header sub-tab click events
     const headerBtns = document.querySelectorAll('.header-nav-btn');
     const headerTitle = document.querySelector('.header-sec-title');
 
     headerBtns.forEach(btn => {
-        // Clone to remove previous event listeners
         const newBtn = btn.cloneNode(true);
         btn.parentNode.replaceChild(newBtn, btn);
 
@@ -98,7 +96,6 @@ function populateViews(pefile) {
         });
     });
 
-    // Refresh icons
     lucide.createIcons();
 }
 
