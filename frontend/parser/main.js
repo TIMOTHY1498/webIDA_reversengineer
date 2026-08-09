@@ -81,19 +81,39 @@ function parseVersionInfo(view) {
   return result;
 }
 
-function loadPEFIle(arr_buff) {
+async function findMetaData(exe, exe_res) {
+  try {
+    let exe_version_info = exe_res.entries.find(x => x.type == 16);
+    return parseVersionInfo(new DataView(exe_version_info.bin));
+  } catch (error) {
+    console.warn("[error] Failed to find metadata:", error);
+    return null;
+  }
+}
+
+async function loadPEFIle(arr_buff) {
   let exe = NtExecutable.from(arr_buff);
   let exe_res = NtExecutableResource.from(exe);
 
-  let exe_version_info = exe_res.entries.find(x => x.type == 16);
+  let is32Bit = exe.is32bit();
+  let mdta = await findMetaData(exe, exe_res);
 
-  return {
-    exe: exe,
-    exe_metadata: parseVersionInfo(new DataView(exe_version_info.bin)),
-    exe_res: exe_res,
-    is32Bit: exe.is32bit(),
-    checksum: calculateCheckSumForPE(arr_buff),
-  };
+  if (mdta) {
+    return {
+      exe: exe,
+      exe_metadata: mdta,
+      exe_res: exe_res,
+      is32Bit: is32Bit,
+      checksum: calculateCheckSumForPE(arr_buff),
+    };
+  } else {
+    return {
+      exe: exe,
+      exe_res: exe_res,
+      is32Bit: is32Bit,
+      checksum: calculateCheckSumForPE(arr_buff),
+    };
+  }
 }
 
 export function Main(bin_PE) {

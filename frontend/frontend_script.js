@@ -2,7 +2,6 @@ import { Main } from "./parser/main.js";
 
 let pefile = null;
 
-// Helper to translate PE Relative Virtual Address (RVA) to file byte offset
 function rvaToOffset(pefile, rva) {
     if (rva === 0) return 0;
     const sections = pefile.exe.getAllSections();
@@ -16,7 +15,6 @@ function rvaToOffset(pefile, rva) {
     return 0;
 }
 
-// Helper to read null-terminated ASCII string from DataView
 function readString(dataView, offset) {
     let str = "";
     if (offset >= dataView.byteLength || offset < 0) return str;
@@ -29,7 +27,6 @@ function readString(dataView, offset) {
 }
 
 window.addEventListener('DOMContentLoaded', () => {
-    // 1. Hook up main file loader
     const peFileInput = document.getElementById('pe-file-input');
     if (peFileInput) {
         peFileInput.addEventListener('change', (event) => {
@@ -43,10 +40,9 @@ window.addEventListener('DOMContentLoaded', () => {
                 const data = e.target.result;
                 pefile = Main(data);
 
-                // Store arrayBuffer and dataView for hex/imports parsing
                 pefile.arrayBuffer = Uint8Array.from(data, (c) => c.charCodeAt(0)).buffer;
                 pefile.dataView = new DataView(pefile.arrayBuffer);
-                pefile.is32Bit = pefile.exe.is32bit();
+                pefile.is32Bit = pefile.is32Bit;
 
                 populateViews(pefile);
             };
@@ -54,7 +50,6 @@ window.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // 2. Hook up main tabs switching
     const tabs = document.querySelectorAll('.tab-btn');
     tabs.forEach(element => {
         element.addEventListener('click', (event) => {
@@ -73,12 +68,10 @@ window.addEventListener('DOMContentLoaded', () => {
         });
     });
 
-    // 3. Initialize AI Assistant UI state
     initAIAssistant(null);
     lucide.createIcons();
 });
 
-// Render all tabs after a successful PE file load
 function populateViews(pefile) {
     renderHexViewer(pefile);
     renderPEHeaders(pefile, 'dos-header');
@@ -548,32 +541,8 @@ function initAIAssistant(pefile) {
             const is32 = pefile.is32Bit;
             const arch = is32 ? "PE32 (32-bit)" : "PE32+ (64-bit)";
 
-            let response = "";
-
-            if (actionType === 'Explain Function') {
-                const ep = '0x' + (exe.newHeader.optionalHeader.imageBase + exe.newHeader.optionalHeader.addressOfEntryPoint).toString(16).toUpperCase();
-                response = `[AI Assistant]: The selected entry point is at address ${ep}. Based on disassembly analysis:
-- This is the CRT startup function, which initializes runtime security checks (e.g. GS stack cookies).
-- It calls internal initialization routines and eventually jumps to main/WinMain.
-- Security cookies are validated to prevent stack buffer overflow exploitation.`;
-            } else if (actionType === 'Find Vulnerabilities') {
-                const isDynamicBase = (exe.newHeader.optionalHeader.dllCharacteristics & 0x0040) !== 0;
-                const isNXCompat = (exe.newHeader.optionalHeader.dllCharacteristics & 0x0100) !== 0;
-
-                response = `[AI Assistant]: Vulnerability and Mitigation Report:
-- Architecture: ${arch}
-- ASLR (Address Space Layout Randomization): ${isDynamicBase ? "ENABLED" : "DISABLED (Warning: potential security vulnerability)"}
-- DEP/NX (Data Execution Prevention): ${isNXCompat ? "ENABLED" : "DISABLED (Warning: stack execution allowed)"}
-- Recommendations: Recompile the binary with /DYNAMICBASE and /NXCOMPAT flags enabled.`;
-            } else if (actionType === 'Scan for Crypto') {
-                response = `[AI Assistant]: Cryptographic Constants Scan:
-- Searched sections: ${exe.getAllSections().map(s => s.info.name).join(", ")}
-- Found imports/indicators: None.
-- Entropy analysis indicates typical execution code with low randomization. No obfuscated encryption keys or high-entropy tables detected.`;
-            } else {
-                response = `[AI Assistant]: I am analyzing the loaded PE file (${arch}). It has ${fileHeader.numberOfSections} sections: ${exe.getAllSections().map(s => s.info.name).join(", ")}.
+            let response = `[AI Assistant]: I am analyzing the loaded PE file (${arch}). It has ${fileHeader.numberOfSections} sections: ${pefile.exe.getAllSections().map(s => s.info.name).join(", ")}.
 Ask me to analyze functions, look up imports/exports, or check security mitigations!`;
-            }
 
             appendTerminalLine(response, 'system-line');
         }, 800);
@@ -582,10 +551,6 @@ Ask me to analyze functions, look up imports/exports, or check security mitigati
     const newExplainBtn = explainBtn.cloneNode(true);
     explainBtn.parentNode.replaceChild(newExplainBtn, explainBtn);
     newExplainBtn.addEventListener('click', () => handleAIQuery('Explain Function'));
-
-    const newFindVulnBtn = findVulnBtn.cloneNode(true);
-    findVulnBtn.parentNode.replaceChild(newFindVulnBtn, findVulnBtn);
-    newFindVulnBtn.addEventListener('click', () => handleAIQuery('Find Vulnerabilities'));
 
     const newFindCryptoBtn = findCryptoBtn.cloneNode(true);
     findCryptoBtn.parentNode.replaceChild(newFindCryptoBtn, findCryptoBtn);

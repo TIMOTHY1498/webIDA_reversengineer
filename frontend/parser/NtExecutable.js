@@ -2,7 +2,7 @@ import ImageDataDirectoryArray from './ImageDataDirectoryArray.js';
 import ImageDirectoryEntry from './ImageDirectoryEntry.js';
 import ImageDosHeader from './ImageDosHeader.js';
 import ImageNtHeaders from './ImageNtHeaders.js';
-import ImageSectionHeaderArray, {} from './ImageSectionHeaderArray.js';
+import ImageSectionHeaderArray, { } from './ImageSectionHeaderArray.js';
 import { allocatePartialBinary, calculateCheckSumForPE, cloneObject, cloneToArrayBuffer, roundUp, } from './functions.js';
 import { makeEmptyNtExecutableBinary } from './generate.js';
 export default class NtExecutable {
@@ -58,7 +58,9 @@ export default class NtExecutable {
             throw new TypeError('Invalid binary format');
         }
         if (nh.fileHeader.numberOfSymbols > 0) {
-            throw new Error('Binary with symbols is not supported now');
+            console.warn(
+                `COFF symbol table contains ${nh.fileHeader.numberOfSymbols} symbols; symbol parsing is unsupported.`
+            );
         }
         const fileAlignment = nh.optionalHeader.fileAlignment;
         const securityEntry = nh.optionalHeaderDataDirectory.get(ImageDirectoryEntry.Certificate);
@@ -154,10 +156,10 @@ export default class NtExecutable {
         const dd = this._dda.get(entry);
         const r = this._sections
             .filter((sec) => {
-            const vaEnd = sec.info.virtualAddress + sec.info.virtualSize;
-            return (dd.virtualAddress >= sec.info.virtualAddress &&
-                dd.virtualAddress < vaEnd);
-        })
+                const vaEnd = sec.info.virtualAddress + sec.info.virtualSize;
+                return (dd.virtualAddress >= sec.info.virtualAddress &&
+                    dd.virtualAddress < vaEnd);
+            })
             .shift();
         return r !== undefined ? r : null;
     }
@@ -225,13 +227,13 @@ export default class NtExecutable {
                         if (rawAddr <= secExist.info.pointerToRawData) {
                             rawAddr =
                                 secExist.info.pointerToRawData +
-                                    secExist.info.sizeOfRawData;
+                                secExist.info.sizeOfRawData;
                         }
                     }
                     if (virtAddr <= secExist.info.virtualAddress) {
                         virtAddr =
                             secExist.info.virtualAddress +
-                                secExist.info.virtualSize;
+                            secExist.info.virtualSize;
                     }
                 });
                 if (!alignedFileSize) {
