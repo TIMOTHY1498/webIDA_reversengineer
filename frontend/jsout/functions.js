@@ -1,0 +1,256 @@
+/// <reference lib='dom' />
+import ImageDosHeader from './ImageDosHeader.js';
+export function cloneObject(object) {
+    const r = {};
+    Object.keys(object).forEach((key) => {
+        r[key] = object[key];
+    });
+    return r;
+}
+export function createDataView(bin, byteOffset, byteLength) {
+    if ('buffer' in bin) {
+        let newOffset = bin.byteOffset;
+        let newLength = bin.byteLength;
+        if (typeof byteOffset !== 'undefined') {
+            newOffset += byteOffset;
+            newLength -= byteOffset;
+        }
+        if (typeof byteLength !== 'undefined') {
+            newLength = byteLength;
+        }
+        return new DataView(bin.buffer, newOffset, newLength);
+    }
+    else {
+        return new DataView(bin, byteOffset, byteLength);
+    }
+}
+export function calculateCheckSumForPE(bin, storeToBinary) {
+    const dosHeader = ImageDosHeader.from(bin);
+    const view = new DataView(bin);
+    const checkSumOffset = dosHeader.newHeaderAddress + 88;
+    let result = 0;
+    const limit = 0x100000000; // 2^32
+    const update = (dword) => {
+        result += dword;
+        if (result >= limit) {
+            result = (result % limit) + ((result / limit) | 0);
+        }
+    };
+    const len = view.byteLength;
+    const lenExtra = len % 4;
+    const lenAlign = len - lenExtra;
+    for (let i = 0; i < lenAlign; i += 4) {
+        if (i !== checkSumOffset) {
+            update(view.getUint32(i, true));
+        }
+    }
+    if (lenExtra !== 0) {
+        let extra = 0;
+        for (let i = 0; i < lenExtra; i++) {
+            extra |= view.getUint8(lenAlign + i) << ((3 - i) * 8);
+        }
+        update(extra);
+    }
+    result = (result & 0xffff) + (result >>> 16);
+    result += result >>> 16;
+    result = (result & 0xffff) + len;
+    if (storeToBinary) {
+        view.setUint32(checkSumOffset, result, true);
+    }
+    return result;
+}
+export function roundUp(val, align) {
+    return Math.floor((val + align - 1) / align) * align;
+}
+export function copyBuffer(dest, destOffset, src, srcOffset, length) {
+    const ua8Dest = 'buffer' in dest
+        ? new Uint8Array(dest.buffer, dest.byteOffset + (destOffset || 0), length)
+        : new Uint8Array(dest, destOffset, length);
+    const ua8Src = 'buffer' in src
+        ? new Uint8Array(src.buffer, src.byteOffset + (srcOffset || 0), length)
+        : new Uint8Array(src, srcOffset, length);
+    ua8Dest.set(ua8Src);
+}
+export function allocatePartialBinary(binBase, offset, length) {
+    const b = new ArrayBuffer(length);
+    copyBuffer(b, 0, binBase, offset, length);
+    return b;
+}
+export function cloneToArrayBuffer(binBase) {
+    if ('buffer' in binBase) {
+        const b = new ArrayBuffer(binBase.byteLength);
+        new Uint8Array(b).set(new Uint8Array(binBase.buffer, binBase.byteOffset, binBase.byteLength));
+        return b;
+    }
+    else {
+        const b = new ArrayBuffer(binBase.byteLength);
+        new Uint8Array(b).set(new Uint8Array(binBase));
+        return b;
+    }
+}
+export function getFixedString(view, offset, length) {
+    let actualLen = 0;
+    for (let i = 0; i < length; ++i) {
+        if (view.getUint8(offset + i) === 0) {
+            break;
+        }
+        ++actualLen;
+    }
+    if (typeof Buffer !== 'undefined') {
+        return Buffer.from(view.buffer, view.byteOffset + offset, actualLen).toString('utf8');
+    }
+    else if (typeof decodeURIComponent !== 'undefined') {
+        let s = '';
+        for (let i = 0; i < actualLen; ++i) {
+            const c = view.getUint8(offset + i);
+            if (c < 16) {
+                s += '%0' + c.toString(16);
+            }
+            else {
+                s += '%' + c.toString(16);
+            }
+        }
+        return decodeURIComponent(s);
+    }
+    else {
+        let s = '';
+        for (let i = 0; i < actualLen; ++i) {
+            const c = view.getUint8(offset + i);
+            s += String.fromCharCode(c);
+        }
+        return s;
+    }
+}
+export function setFixedString(view, offset, length, text) {
+    if (typeof Buffer !== 'undefined') {
+        const u = new Uint8Array(view.buffer, view.byteOffset + offset, length);
+        // fill by zero
+        u.set(new Uint8Array(length));
+        u.set(Buffer.from(text, 'utf8').subarray(0, length));
+    }
+    else if (typeof encodeURIComponent !== 'undefined') {
+        const s = encodeURIComponent(text);
+        for (let i = 0, j = 0; i < length; ++i) {
+            if (j >= s.length) {
+                view.setUint8(i + offset, 0);
+            }
+            else {
+                const c = s.charCodeAt(j);
+                if (c === 37) {
+                    // '%'
+                    const n = parseInt(s.substr(j + 1, 2), 16);
+                    if (typeof n === 'number' && !isNaN(n)) {
+                        view.setUint8(i + offset, n);
+                    }
+                    else {
+                        view.setUint8(i + offset, 0);
+                    }
+                    j += 3;
+                }
+                else {
+                    view.setUint8(i + offset, c);
+                }
+            }
+        }
+    }
+    else {
+        for (let i = 0, j = 0; i < length; ++i) {
+            if (j >= text.length) {
+                view.setUint8(i + offset, 0);
+            }
+            else {
+                const c = text.charCodeAt(j);
+                view.setUint8(i + offset, c & 0xff);
+            }
+        }
+    }
+}
+export function binaryToString(bin) {
+    if (typeof TextDecoder !== 'undefined') {
+        const dec = new TextDecoder();
+        return dec.decode(bin);
+    }
+    else if (typeof Buffer !== 'undefined') {
+        let b;
+        if ('buffer' in bin) {
+            b = Buffer.from(bin.buffer, bin.byteOffset, bin.byteLength);
+        }
+        else {
+            b = Buffer.from(bin);
+        }
+        return b.toString('utf8');
+    }
+    else {
+        let view;
+        if ('buffer' in bin) {
+            view = new Uint8Array(bin.buffer, bin.byteOffset, bin.byteLength);
+        }
+        else {
+            view = new Uint8Array(bin);
+        }
+        if (typeof decodeURIComponent !== 'undefined') {
+            let s = '';
+            for (let i = 0; i < view.length; ++i) {
+                const c = view[i];
+                if (c < 16) {
+                    s += '%0' + c.toString(16);
+                }
+                else {
+                    s += '%' + c.toString(16);
+                }
+            }
+            return decodeURIComponent(s);
+        }
+        else {
+            let s = '';
+            for (let i = 0; i < view.length; ++i) {
+                const c = view[i];
+                s += String.fromCharCode(c);
+            }
+            return s;
+        }
+    }
+}
+export function stringToBinary(string) {
+    if (typeof TextEncoder !== 'undefined') {
+        const enc = new TextEncoder();
+        return cloneToArrayBuffer(enc.encode(string));
+    }
+    else if (typeof Buffer !== 'undefined') {
+        return cloneToArrayBuffer(Buffer.from(string, 'utf8'));
+    }
+    else if (typeof encodeURIComponent !== 'undefined') {
+        const data = encodeURIComponent(string);
+        let len = 0;
+        for (let i = 0; i < data.length; ++len) {
+            const c = data.charCodeAt(i);
+            if (c === 37) {
+                i += 3;
+            }
+            else {
+                ++i;
+            }
+        }
+        const bin = new ArrayBuffer(len);
+        const view = new Uint8Array(bin);
+        for (let i = 0, j = 0; i < data.length; ++j) {
+            const c = data.charCodeAt(i);
+            if (c === 37) {
+                const n = parseInt(data.substring(i + 1, i + 3), 16);
+                view[j] = n;
+                i += 3;
+            }
+            else {
+                view[j] = c;
+                ++i;
+            }
+        }
+        return bin;
+    }
+    else {
+        const bin = new ArrayBuffer(string.length);
+        new Uint8Array(bin).set([].map.call(string, (c) => c.charCodeAt(0)));
+        return bin;
+    }
+}
+//# sourceMappingURL=functions.js.map
