@@ -13,7 +13,7 @@ This tool allows you to view the headers of a PE file in the browser. It is a wo
 ## Expected Features 
 
 - Working AI Assistant
-- Working dissasmbler viewer (with modified version of [radare2/r2web](https://github.com/IndAlok/r2web))
+- Working dissasmbler viewer (with modified version of [IndAlok/r2web](https://github.com/IndAlok/r2web))
 
 ## Tech Stack
 
