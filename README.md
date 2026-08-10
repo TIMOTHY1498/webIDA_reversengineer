@@ -6,8 +6,7 @@ This tool allows you to view the headers of a PE file in the browser. It is a wo
 
 - AI Assistant
 - View PE Headers (MS-DOS Header, COFF Header, Optional Header, Data Directories)
-- View Disassembly
-- View Hex Viewer
+- Hex Viewer (Read-only)
 - View Sections
 
 ## Expected Features 
