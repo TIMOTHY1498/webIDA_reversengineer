@@ -484,6 +484,7 @@ function renderImportsAndExports(pefile) {
     }
 }
 
+// Coming soon <3
 function renderDisassembly(pefile) {
     // const entryPointRVA = pefile.exe.newHeader.optionalHeader.addressOfEntryPoint;
     // const imageBase = pefile.exe.newHeader.optionalHeader.imageBase;

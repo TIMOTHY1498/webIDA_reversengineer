@@ -1,6 +1,11 @@
 # WebIDA - Experimental PE File Viewer (Browser-Based) 
 
-This tool allows you to view the headers of a PE file in the browser. It is a work in progress and is not intended for production use. It is a proof of concept to show that it is possible to view the headers of a PE file in the browser. 
+This tool allows you to decompile and view the headers of a PE file in the browser. It is a work in progress and is not intended for production use.
+
+# DISCLAIMER (for binaries)
+The `testbins` directory contains types of binaries (INCLUDING REAL MALWARE). **DO NOT EXECUTE any of these binaries**, because some of these files may contain real malware or other potentially harmful code.
+
+The binaries are provided **solely for research, testing, and educational purposes**. I, the developer of this project **does not endorse, distribute, or encourage the use of any malicious software** contained within the directory.
 
 ## Features 
 
@@ -12,7 +17,7 @@ This tool allows you to view the headers of a PE file in the browser. It is a wo
 ## Expected Features 
 
 - Working AI Assistant
-- Working dissasmbler viewer (with modified version of [IndAlok/r2web](https://github.com/IndAlok/r2web))
+- Working dissasmbler viewer ([IndAlok/r2web](https://github.com/IndAlok/r2web))
 
 ## Tech Stack
 
