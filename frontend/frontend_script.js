@@ -1,6 +1,8 @@
 import { Main } from "./parser/main.js";
 
 let pefile = null;
+let rizinRuntimePromise = null;
+let rizinSession = null;
 
 function rvaToOffset(pefile, rva) {
     if (rva === 0) return 0;
@@ -26,6 +28,118 @@ function readString(dataView, offset) {
     return str;
 }
 
+function escapeHtml(text) {
+    return String(text)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;');
+}
+
+async function ensureRizinRuntime() {
+    if (rizinRuntimePromise) {
+        return rizinRuntimePromise;
+    }
+
+    rizinRuntimePromise = new Promise((resolve) => {
+        const runtime = globalThis.Module || {};
+        if (runtime._rzweb_create_session) {
+            resolve(runtime);
+            return;
+        }
+
+        const previous = runtime.onRuntimeInitialized;
+        runtime.onRuntimeInitialized = () => {
+            if (typeof previous === 'function') {
+                previous();
+            }
+            resolve(runtime);
+        };
+    });
+
+    return rizinRuntimePromise;
+}
+
+function allocateCString(runtime, text) {
+    const bytes = new TextEncoder().encode(String(text) + '\0');
+    const ptr = runtime._malloc?.(bytes.length);
+    if (!ptr) {
+        return 0;
+    }
+
+    const heap = new Uint8Array(runtime.HEAPU8.buffer, ptr, bytes.length);
+    heap.set(bytes);
+    return ptr;
+}
+
+function freeCString(runtime, ptr) {
+    if (ptr && typeof runtime._free === 'function') {
+        runtime._free(ptr);
+    }
+}
+
+async function getRizinDisassembly(arrayBuffer, pefile = null) {
+    // if (!arrayBuffer) {
+    //     return null;
+    // }
+
+    // const runtime = await ensureRizinRuntime();
+    // if (!runtime._rzweb_create_session || !runtime._rzweb_cmd || !runtime._malloc || !runtime._free) {
+    //     return null;
+    // }
+
+    // if (!rizinSession) {
+    //     const session = runtime._rzweb_create_session();
+    //     if (!session) {
+    //         return null;
+    //     }
+    //     rizinSession = session;
+    // }
+
+    // const bytes = new Uint8Array(arrayBuffer);
+    // const dataPtr = runtime._malloc(bytes.byteLength + 1);
+    // if (!dataPtr) {
+    //     return null;
+    // }
+
+    // try {
+    //     const heap = new Uint8Array(runtime.HEAPU8.buffer, dataPtr, bytes.byteLength + 1);
+    //     heap.set(bytes);
+    //     heap[bytes.byteLength] = 0;
+
+    //     const filename = String(pefile?.fileName || 'loaded.bin').replace(/\\/g, '/');
+    //     const filenamePtr = allocateCString(runtime, filename);
+    //     try {
+    //         runtime._rzweb_open_file?.(rizinSession, dataPtr, bytes.byteLength, filenamePtr);
+    //     } catch (err) {
+    //         console.warn('Rizin open failed, continuing with command fallback:', err);
+    //     } finally {
+    //         freeCString(runtime, filenamePtr);
+    //     }
+
+    //     const entryRva = pefile?.exe?.newHeader?.optionalHeader?.addressOfEntryPoint || 0;
+    //     const imageBase = pefile?.exe?.newHeader?.optionalHeader?.imageBase || 0;
+    //     const entryVa = imageBase + entryRva;
+    //     const command = `aaa; afl; s 0x${entryVa.toString(16)}; pdf`;
+    //     const commandPtr = allocateCString(runtime, command);
+
+    //     try {
+    //         const resultPtr = runtime._rzweb_cmd(rizinSession, commandPtr);
+    //         if (resultPtr && typeof runtime.UTF8ToString === 'function') {
+    //             return runtime.UTF8ToString(resultPtr);
+    //         }
+    //         if (resultPtr && typeof globalThis.UTF8ToString === 'function') {
+    //             return globalThis.UTF8ToString(resultPtr);
+    //         }
+    //     } finally {
+    //         freeCString(runtime, commandPtr);
+    //     }
+    // } finally {
+    //     runtime._free?.(dataPtr);
+    // }
+
+    return null;
+}
+
 window.addEventListener('DOMContentLoaded', () => {
     const peFileInput = document.getElementById('pe-file-input');
     if (peFileInput) {
@@ -49,6 +163,7 @@ window.addEventListener('DOMContentLoaded', () => {
                     const parsed = await Main(data);
                     pefile = parsed;
 
+                    pefile.fileName = file.name;
                     pefile.arrayBuffer = Uint8Array.from(data, (c) => c.charCodeAt(0)).buffer;
                     pefile.dataView = new DataView(pefile.arrayBuffer);
 
@@ -122,11 +237,11 @@ window.addEventListener('DOMContentLoaded', () => {
     lucide.createIcons();
 });
 
-function populateViews(pefile) {
+async function populateViews(pefile) {
     renderHexViewer(pefile);
     renderPEHeaders(pefile, 'dos-header');
     renderImportsAndExports(pefile);
-    renderDisassembly(pefile);
+    await renderDisassembly(pefile);
     // renderSectionBand(pefile);
     // renderFunctionsList(pefile);
     initAIAssistant(pefile);
@@ -484,72 +599,35 @@ function renderImportsAndExports(pefile) {
     }
 }
 
-// Coming soon <3
-function renderDisassembly(pefile) {
-    // const entryPointRVA = pefile.exe.newHeader.optionalHeader.addressOfEntryPoint;
-    // const imageBase = pefile.exe.newHeader.optionalHeader.imageBase;
-    // const entryPointVA = imageBase + entryPointRVA;
+async function renderDisassembly(pefile) {
+    const addressEl = document.getElementById('disasm-address');
+    const gutterEl = document.getElementById('disasm-gutter');
+    const contentEl = document.getElementById('disasm-content');
 
-    // document.getElementById('disasm-address').textContent = '0x' + entryPointVA.toString(16).toUpperCase();
+    if (!gutterEl || !contentEl) return;
 
-    // const gutterEl = document.getElementById('disasm-gutter');
-    // const contentEl = document.getElementById('disasm-content');
-    // if (!gutterEl || !contentEl) return;
+    const entryRva = pefile.exe?.newHeader?.optionalHeader?.addressOfEntryPoint || 0;
+    const imageBase = pefile.exe?.newHeader?.optionalHeader?.imageBase || 0;
+    const entryVa = imageBase + entryRva;
 
-    // let rawOffset = rvaToOffset(pefile, entryPointRVA);
-    // const view = pefile.dataView;
+    if (addressEl) {
+        addressEl.textContent = '0x' + entryVa.toString(16).toUpperCase();
+    }
 
-    // let gutterHTML = "";
-    // let contentHTML = "";
+    let asmText = '';
+    try {
+        asmText = await getRizinDisassembly(null) || '';
+    } catch (err) {
+        console.error('Rizin disassembly failed:', err);
+    }
 
-    // const mockInstructions = [
-    //     { bytes: [0x48, 0x83, 0xEC, 0x28], mnemonic: "sub", args: "rsp, 28h" },
-    //     { bytes: [0xE8, 0x20, 0x01, 0x00, 0x00], mnemonic: "call", args: "init_security_cookie" },
-    //     { bytes: [0x48, 0x83, 0xC4, 0x28], mnemonic: "add", args: "rsp, 28h" },
-    //     { bytes: [0xE9, 0x54, 0x00, 0x00, 0x00], mnemonic: "jmp", args: "mainCRTStartup" },
-    //     { bytes: [0xCC], mnemonic: "int", args: "3" },
-    //     { bytes: [0xCC], mnemonic: "int", args: "3" },
-    //     { bytes: [0x48, 0x89, 0x5C, 0x24, 0x08], mnemonic: "mov", args: "[rsp+8], rbx" },
-    //     { bytes: [0x57], mnemonic: "push", args: "rdi" },
-    //     { bytes: [0x48, 0x83, 0xEC, 0x20], mnemonic: "sub", args: "rsp, 20h" },
-    //     { bytes: [0x48, 0x8B, 0xD9], mnemonic: "mov", args: "rbx, rcx" },
-    //     { bytes: [0x33, 0xFF], mnemonic: "xor", args: "edi, edi" },
-    //     { bytes: [0x38, 0x01], mnemonic: "cmp", args: "[rcx], al" },
-    //     { bytes: [0x74, 0x08], mnemonic: "jz", args: "loc_exit" },
-    //     { bytes: [0x8B, 0x01], mnemonic: "mov", args: "eax, [rcx]" },
-    //     { bytes: [0xFF, 0x15, 0x80, 0x20, 0x00, 0x00], mnemonic: "call", args: "qword ptr [__imp_GetVersion]" },
-    //     { bytes: [0x48, 0x8B, 0x5C, 0x24, 0x30], mnemonic: "mov", args: "rbx, [rsp+30h]" },
-    //     { bytes: [0x48, 0x83, 0xC4, 0x20], mnemonic: "add", args: "rsp, 20h" },
-    //     { bytes: [0x5F], mnemonic: "pop", args: "rdi" },
-    //     { bytes: [0xC3], mnemonic: "retn", args: "" }
-    // ];
+    if (!asmText.trim()) {
+        asmText = 'Rizin disassembly is not available yet. \nThe frontend is ready to display the returned assembly output once the wasm bridge responds.';
+    }
 
-    // let currentVA = entryPointVA;
-
-    // mockInstructions.forEach((inst, index) => {
-    //     const addrStr = currentVA.toString(16).toUpperCase();
-    //     gutterHTML += `<div>${addrStr}</div>`;
-
-    //     let bytesArray = [];
-    //     for (let b = 0; b < inst.bytes.length; b++) {
-    //         if (rawOffset < view.byteLength) {
-    //             bytesArray.push(view.getUint8(rawOffset++));
-    //         } else {
-    //             bytesArray.push(inst.bytes[b]);
-    //         }
-    //     }
-
-    //     const bytesStr = bytesArray.map(b => b.toString(16).padStart(2, '0').toUpperCase()).join(" ");
-    //     const paddedBytes = bytesStr.padEnd(20, ' ');
-
-    //     contentHTML += `<span class="asm-bytes">${paddedBytes}</span> <span class="asm-mnemonic">${inst.mnemonic.padEnd(8, ' ')}</span><span class="asm-args">${inst.args}</span>\n`;
-
-    //     currentVA += bytesArray.length;
-    // });
-
-    // gutterEl.innerHTML = gutterHTML;
-    // contentEl.innerHTML = contentHTML;
-    return;
+    const lines = asmText.split(/\r?\n/);
+    gutterEl.innerHTML = lines.map((_, index) => `<div>${index + 1}</div>`).join('');
+    contentEl.textContent = asmText;
 }
 
 function initAIAssistant(pefile) {
