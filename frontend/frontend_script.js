@@ -34,17 +34,48 @@ window.addEventListener('DOMContentLoaded', () => {
             if (!file) {
                 return;
             }
+            const loadingOverlay = document.getElementById('loading-overlay');
+            if (loadingOverlay) {
+                loadingOverlay.classList.remove('hidden');
+            }
 
             const reader = new FileReader();
-            reader.onload = (e) => {
+            reader.onload = async (e) => {
                 const data = e.target.result;
-                pefile = Main(data);
 
-                pefile.arrayBuffer = Uint8Array.from(data, (c) => c.charCodeAt(0)).buffer;
-                pefile.dataView = new DataView(pefile.arrayBuffer);
-                pefile.is32Bit = pefile.is32Bit;
+                await new Promise(resolve => setTimeout(resolve, 50));
 
-                populateViews(pefile);
+                try {
+                    const parsed = await Main(data);
+                    pefile = parsed;
+
+                    pefile.arrayBuffer = Uint8Array.from(data, (c) => c.charCodeAt(0)).buffer;
+                    pefile.dataView = new DataView(pefile.arrayBuffer);
+
+                    // Update Toolbar File Details
+                    const toolbarFilename = document.getElementById('toolbar-filename');
+                    if (toolbarFilename) toolbarFilename.textContent = file.name;
+
+                    const toolbarFiletype = document.getElementById('toolbar-filetype');
+                    if (toolbarFiletype) {
+                        toolbarFiletype.textContent = pefile.is32Bit ? "PE32 (32-bit)" : "PE32+ (64-bit)";
+                    }
+
+                    const toolbarEntrypoint = document.getElementById('toolbar-entrypoint');
+                    if (toolbarEntrypoint && pefile.exe && pefile.exe.newHeader) {
+                        const ep = pefile.exe.newHeader.optionalHeader.addressOfEntryPoint;
+                        toolbarEntrypoint.textContent = '0x' + ep.toString(16).toUpperCase();
+                    }
+
+                    populateViews(pefile);
+                } catch (err) {
+                    console.error("Error parsing PE file:", err);
+                    alert("Error parsing PE file: " + err.message);
+                } finally {
+                    if (loadingOverlay) {
+                        loadingOverlay.classList.add('hidden');
+                    }
+                }
             };
             reader.readAsBinaryString(file);
         });
@@ -68,6 +99,25 @@ window.addEventListener('DOMContentLoaded', () => {
         });
     });
 
+    const resetButton = document.getElementById('reset-button');
+    if (resetButton) {
+        resetButton.addEventListener('click', () => {
+            window.location.reload();
+        });
+    }
+
+    const globalSearch = document.getElementById('global-search');
+    if (globalSearch) {
+        globalSearch.addEventListener('input', (e) => {
+            const query = e.target.value;
+            const funcSearch = document.getElementById('functions-search');
+            if (funcSearch) {
+                funcSearch.value = query;
+                funcSearch.dispatchEvent(new Event('input'));
+            }
+        });
+    }
+
     initAIAssistant(null);
     lucide.createIcons();
 });
@@ -77,6 +127,8 @@ function populateViews(pefile) {
     renderPEHeaders(pefile, 'dos-header');
     renderImportsAndExports(pefile);
     renderDisassembly(pefile);
+    // renderSectionBand(pefile);
+    // renderFunctionsList(pefile);
     initAIAssistant(pefile);
 
     const headerBtns = document.querySelectorAll('.header-nav-btn');
@@ -98,6 +150,8 @@ function populateViews(pefile) {
 
     lucide.createIcons();
 }
+
+// Shitty vibecoded frontend render functions :)
 
 function renderHexViewer(pefile) {
     const view = pefile.dataView;
