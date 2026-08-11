@@ -1,4 +1,4 @@
-# WebIDA - Experimental PE File Viewer (Browser-Based) 
+# WebIDA - Experimental PE Decompiler & Parser (Browser-Based) 
 
 This tool allows you to decompile and view the headers of a PE file in the browser. It is a work in progress and is not intended for production use.
 
