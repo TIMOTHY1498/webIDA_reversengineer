@@ -4,6 +4,7 @@ import { Main } from "./parser/main.js";
 let pefile = null;
 let rizinRuntimePromise = null;
 let rizinSession = null;
+let rizin_session = null;
 
 function rvaToOffset(pefile, rva) {
     if (rva === 0) return 0;
@@ -79,64 +80,7 @@ function freeCString(runtime, ptr) {
 }
 
 async function getRizinDisassembly(arrayBuffer, pefile = null) {
-    // if (!arrayBuffer) {
-    //     return null;
-    // }
-
-    // const runtime = await ensureRizinRuntime();
-    // if (!runtime._rzweb_create_session || !runtime._rzweb_cmd || !runtime._malloc || !runtime._free) {
-    //     return null;
-    // }
-
-    // if (!rizinSession) {
-    //     const session = runtime._rzweb_create_session();
-    //     if (!session) {
-    //         return null;
-    //     }
-    //     rizinSession = session;
-    // }
-
-    // const bytes = new Uint8Array(arrayBuffer);
-    // const dataPtr = runtime._malloc(bytes.byteLength + 1);
-    // if (!dataPtr) {
-    //     return null;
-    // }
-
-    // try {
-    //     const heap = new Uint8Array(runtime.HEAPU8.buffer, dataPtr, bytes.byteLength + 1);
-    //     heap.set(bytes);
-    //     heap[bytes.byteLength] = 0;
-
-    //     const filename = String(pefile?.fileName || 'loaded.bin').replace(/\\/g, '/');
-    //     const filenamePtr = allocateCString(runtime, filename);
-    //     try {
-    //         runtime._rzweb_open_file?.(rizinSession, dataPtr, bytes.byteLength, filenamePtr);
-    //     } catch (err) {
-    //         console.warn('Rizin open failed, continuing with command fallback:', err);
-    //     } finally {
-    //         freeCString(runtime, filenamePtr);
-    //     }
-
-    //     const entryRva = pefile?.exe?.newHeader?.optionalHeader?.addressOfEntryPoint || 0;
-    //     const imageBase = pefile?.exe?.newHeader?.optionalHeader?.imageBase || 0;
-    //     const entryVa = imageBase + entryRva;
-    //     const command = `aaa; afl; s 0x${entryVa.toString(16)}; pdf`;
-    //     const commandPtr = allocateCString(runtime, command);
-
-    //     try {
-    //         const resultPtr = runtime._rzweb_cmd(rizinSession, commandPtr);
-    //         if (resultPtr && typeof runtime.UTF8ToString === 'function') {
-    //             return runtime.UTF8ToString(resultPtr);
-    //         }
-    //         if (resultPtr && typeof globalThis.UTF8ToString === 'function') {
-    //             return globalThis.UTF8ToString(resultPtr);
-    //         }
-    //     } finally {
-    //         freeCString(runtime, commandPtr);
-    //     }
-    // } finally {
-    //     runtime._free?.(dataPtr);
-    // }
+    
 
     return null;
 }
@@ -177,11 +121,37 @@ window.addEventListener('DOMContentLoaded', () => {
                         toolbarFiletype.textContent = pefile.is32Bit ? "PE32 (32-bit)" : "PE32+ (64-bit)";
                     }
 
-                    const toolbarEntrypoint = document.getElementById('toolbar-entrypoint');
+                    rizin_session = Module._rzweb_create_session();
+                    if (!rizin_session) {
+                        throw new Error("[error] Rizin session creation failed");
+                    } 
+
+                    let dataPtraaa = Module._malloc(pefile.arrayBuffer.length + 1);
+                    Module.HEAPU8.set(pefile.arrayBuffer, dataPtraaa);
+                    Module.HEAPU8[dataPtraaa + pefile.arrayBuffer.length] = 0;  
+
+                    let filenamePtraaa = Module._malloc(pefile.fileName.length + 1);
+
+                    stringToUTF8(pefile.fileName, filenamePtraaa, pefile.fileName.length + 1);
+                    Module._rzweb_open_file(rizin_session, dataPtraaa, pefile.arrayBuffer.length, filenamePtraaa);
+                    Module._free(filenamePtraaa);
+
+                    let toolbarEntrypoint = document.getElementById('toolbar-entrypoint');
                     if (toolbarEntrypoint && pefile.exe && pefile.exe.newHeader) {
                         const ep = pefile.exe.newHeader.optionalHeader.addressOfEntryPoint;
                         toolbarEntrypoint.textContent = '0x' + ep.toString(16).toUpperCase();
                     }
+
+                    let cmd = "aaa; afl; pdf";
+                    let cmdPtr = Module._malloc(cmd.length + 1);
+                    stringToUTF8(cmd, cmdPtr, cmd.length + 1);
+
+                    let resultPtr = Module._rzweb_cmd(rizin_session, cmdPtr);
+                    let result = UTF8ToString(resultPtr);
+
+                    renderDisassembly(result);
+                    Module._free(cmdPtr);
+                    Module._free(resultPtr);
 
                     populateViews(pefile);
                 } catch (err) {
@@ -600,31 +570,19 @@ function renderImportsAndExports(pefile) {
     }
 }
 
-async function renderDisassembly(pefile) {
-    const addressEl = document.getElementById('disasm-address');
+async function renderDisassembly(asmText) {
     const gutterEl = document.getElementById('disasm-gutter');
     const contentEl = document.getElementById('disasm-content');
 
-    if (!gutterEl || !contentEl) return;
-
-    const entryRva = pefile.exe?.newHeader?.optionalHeader?.addressOfEntryPoint || 0;
-    const imageBase = pefile.exe?.newHeader?.optionalHeader?.imageBase || 0;
-    const entryVa = imageBase + entryRva;
-
-    if (addressEl) {
-        addressEl.textContent = '0x' + entryVa.toString(16).toUpperCase();
-    }
-
-    let asmText = '';
     try {
-        asmText = await getRizinDisassembly(null) || '';
+        console.log("[info] successfully dissassembled the binary using Rizin.");
     } catch (err) {
         console.error('Rizin disassembly failed:', err);
     }
 
-    if (!asmText.trim()) {
-        asmText = 'Rizin disassembly is not available yet. \nThe frontend is ready to display the returned assembly output once the wasm bridge responds.';
-    }
+    // if (!asmText.trim()) {
+    //     asmText = 'Rizin disassembly is not available yet. \nThe frontend is ready to display the returned assembly output once the wasm bridge responds.';
+    // }
 
     const lines = asmText.split(/\r?\n/);
     gutterEl.innerHTML = lines.map((_, index) => `<div>${index + 1}</div>`).join('');
