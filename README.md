@@ -35,9 +35,9 @@ The binaries are provided **solely for research, testing, and educational purpos
 
 ## Working Test Binaries (Parser)
 
-- FL64.exe, FLEngine_x64.dll - FL Studio 25 Executable
-- sample_malw.exe, testbin.exe - A sample malware (download at your own risk)
-- Vanguard.sys - Valorant's Anti-Cheat
+- FL64.exe, FLEngine_x64.dll - FL Studio Executable & Library
+- sample_malw.exe, testbin.exe, infostealer_INFECTED.exe - A sample malware (download at your own risk)
+- Vanguard.sys - Valorant's Kernel-Level Anti-Cheat
 - ChromeSetup.exe - Google Chrome Installer
 - cmd.exe (WINE) - Windows Command Prompt (WINE's version)
 - regedit.exe (WINE) - Windows Registry Editor (WINE's version)
