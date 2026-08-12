@@ -17,7 +17,7 @@ The binaries are provided **solely for research, testing, and educational purpos
 ## Expected Features 
 
 - Working AI Assistant
-- Working dissasmbler viewer ([IndAlok/rzweb](https://github.com/IndAlok/rzwasm))
+- Working dissasmbler viewer (Powered with [IndAlok/rzwasi](https://github.com/IndAlok/rzwasi))
 
 ## Tech Stack
 
