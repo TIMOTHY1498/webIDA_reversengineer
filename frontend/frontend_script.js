@@ -1,4 +1,5 @@
 import { Main } from "./parser/main.js";
+// the "./diassm/rizin.js" script SHOULD already initilized in the webpage. ("index.html"). see line 312.
 
 let pefile = null;
 let rizinRuntimePromise = null;
