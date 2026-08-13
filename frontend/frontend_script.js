@@ -6,6 +6,8 @@ let rizinRuntimePromise = null;
 let rizinSession = null;
 let rizin_session = null;
 
+let functionsListAddr = [];
+
 function rvaToOffset(pefile, rva) {
     if (rva === 0) return 0;
     const sections = pefile.exe.getAllSections();
@@ -79,10 +81,22 @@ function freeCString(runtime, ptr) {
     }
 }
 
-async function getRizinDisassembly(arrayBuffer, pefile = null) {
-    
+async function getRizinDisassembly(functionAddress) {
 
-    return null;
+    await ensureRizinRuntime();
+    if (!rizin_session) return null;
+    try {
+        const cmd = Module.cwrap('rzweb_cmd', 'string', ['number', 'string']);
+        // Prefer `pdf` (print disasm for function) if available, fall back to `pd`.
+        let out = cmd(rizin_session, `pdf @ ${functionAddress}`);
+        if (!out || out.trim() === '') {
+            out = cmd(rizin_session, `pd 256 @ ${functionAddress}`);
+        }
+        return out || '';
+    } catch (err) {
+        console.error('getRizinDisassembly error:', err);
+        return null;
+    }
 }
 
 window.addEventListener('DOMContentLoaded', () => {
@@ -124,17 +138,36 @@ window.addEventListener('DOMContentLoaded', () => {
                     rizin_session = Module._rzweb_create_session();
                     if (!rizin_session) {
                         throw new Error("[error] Rizin session creation failed");
-                    } 
+                    }
 
-                    let dataPtraaa = Module._malloc(pefile.arrayBuffer.length + 1);
-                    Module.HEAPU8.set(pefile.arrayBuffer, dataPtraaa);
-                    Module.HEAPU8[dataPtraaa + pefile.arrayBuffer.length] = 0;  
+                    // Upload the PE bytes into the Rizin wasm session so commands operate on it.
+                    try {
+                        const dataBytes = new Uint8Array(pefile.arrayBuffer);
+                        const dataPtr = Module._malloc(dataBytes.length);
+                        Module.HEAPU8.set(dataBytes, dataPtr);
 
-                    let filenamePtraaa = Module._malloc(pefile.fileName.length + 1);
+                        const nameLen = lengthBytesUTF8(file.name) + 1;
+                        const namePtr = Module._malloc(nameLen);
+                        stringToUTF8(file.name, namePtr, nameLen);
 
-                    stringToUTF8(pefile.fileName, filenamePtraaa, pefile.fileName.length + 1);
-                    Module._rzweb_open_file(rizin_session, dataPtraaa, pefile.arrayBuffer.length, filenamePtraaa);
-                    Module._free(filenamePtraaa);
+                        Module.FS.mkdirTree('/work');
+                        Module.FS.writeFile("/work/" + file.name, dataBytes);
+                        const openRes = Module._rzweb_open_file(rizin_session, "/work/" + file.name, dataBytes.length, namePtr);
+
+                        Module._free(dataPtr);
+                        Module._free(namePtr);
+
+                        if (openRes && openRes !== 0) {
+                            try {
+                                const errPtr = Module._rzweb_get_last_error(rizin_session);
+                                console.warn('[rzweb] open file returned', openRes, UTF8ToString(errPtr));
+                            } catch (e) {
+                                console.warn('[rzweb] open file returned', openRes);
+                            }
+                        }
+                    } catch (e) {
+                        console.warn('Failed to upload file to Rizin session:', e);
+                    }
 
                     let toolbarEntrypoint = document.getElementById('toolbar-entrypoint');
                     if (toolbarEntrypoint && pefile.exe && pefile.exe.newHeader) {
@@ -142,17 +175,70 @@ window.addEventListener('DOMContentLoaded', () => {
                         toolbarEntrypoint.textContent = '0x' + ep.toString(16).toUpperCase();
                     }
 
-                    let cmd = "aaa; afl; pdf";
-                    let cmdPtr = Module._malloc(cmd.length + 1);
-                    stringToUTF8(cmd, cmdPtr, cmd.length + 1);
+                    let cmd = Module.cwrap('rzweb_cmd', 'string', ['number', 'string']);
 
-                    let resultPtr = Module._rzweb_cmd(rizin_session, cmdPtr);
-                    let result = UTF8ToString(resultPtr);
+                    // Run full analysis and then list functions
+                    try {
+                        cmd(rizin_session, 'aaa');
+                    } catch (e) {
+                        console.warn('Rizin analysis command failed (aaa):', e);
+                    }
 
-                    renderDisassembly(result);
-                    Module._free(cmdPtr);
-                    Module._free(resultPtr);
+                    // Parse `afl` output and extract function addresses robustly.
+                    (function() {
+                        const out = cmd(rizin_session, "aflt") || '';
+                        console.log("[info] Rizin `aflt` output:\n", out);
+                        const lines = out.split(/\r?\n/);
+                        const addrs = [];
+                        for (const line of lines) {
+                            if (!line) continue;
+                            // Look for a hex-like token (prefer 0x-prefixed)
+                            const m = line.match(/(0x[0-9A-Fa-f]+|\b[0-9A-Fa-f]{6,16}\b)/);
+                            if (m && m[1]) {
+                                let a = m[1];
+                                if (!/^0x/i.test(a)) a = '0x' + a;
+                                addrs.push(a);
+                            }
+                        }
+                        // Deduplicate while preserving order
+                        const seen = new Set();
+                        functionsListAddr = addrs.filter(a => {
+                            if (seen.has(a)) return false;
+                            seen.add(a);
+                            return true;
+                        });
+                    })();
 
+                    const functionsCountEl = document.getElementById('functions-count');
+                    if (functionsCountEl) functionsCountEl.textContent = String(functionsListAddr.length);
+
+                    // Populate functions list returned by Rizin (`afl`).
+                    // Look for a functions table in the DOM, fall back to console if missing.
+                    const functionsTableEl = document.getElementById('functions-list') || document.getElementById('functions-table');
+                    if (functionsTableEl) {
+                        functionsTableEl.innerHTML = '';
+                        functionsListAddr.forEach(addr => {
+                            const funcName = cmd(rizin_session, `afn ${addr}`).trim();
+                            const row = document.createElement('tr');
+                            row.innerHTML = `
+                                <td><code>${addr}</code></td>
+                                <td><code>${escapeHtml(funcName)}</code></td>
+                            `;
+                            row.style.cursor = 'pointer';
+                            row.addEventListener('click', async () => {
+                                const asm = await getRizinDisassembly(addr);
+                                renderDisassembly(asm || `No disassembly for ${addr}`);
+                            });
+                            functionsTableEl.appendChild(row);
+                        });
+                    } else {
+                        // If there's no functions table in the UI, log for debugging.
+                        console.log("[info] Functions list (from Rizin `afl`):");
+                    }
+                    console.log('Rizin functions:', functionsListAddr.map(a => `${a} ${cmd(rizin_session, `afn ${a}`).trim()}`));
+                    
+
+                    renderDisassembly("Rizin disassembly is not available yet. \nThe frontend is ready to display the returned assembly output once the wasm bridge responds.");
                     populateViews(pefile);
                 } catch (err) {
                     console.error("Error parsing PE file:", err);
@@ -212,7 +298,7 @@ async function populateViews(pefile) {
     renderHexViewer(pefile);
     renderPEHeaders(pefile, 'dos-header');
     renderImportsAndExports(pefile);
-    await renderDisassembly(pefile);
+    // await renderDisassembly(pefile);
     // renderSectionBand(pefile);
     // renderFunctionsList(pefile);
     initAIAssistant(pefile);
@@ -580,13 +666,10 @@ async function renderDisassembly(asmText) {
         console.error('Rizin disassembly failed:', err);
     }
 
-    // if (!asmText.trim()) {
-    //     asmText = 'Rizin disassembly is not available yet. \nThe frontend is ready to display the returned assembly output once the wasm bridge responds.';
-    // }
-
-    const lines = asmText.split(/\r?\n/);
+    // Accept either a string or an array of lines. Ensure we have an array for mapping.
+    const lines = Array.isArray(asmText) ? asmText : String(asmText || '').split(/\r?\n/);
     gutterEl.innerHTML = lines.map((_, index) => `<div>${index + 1}</div>`).join('');
-    contentEl.textContent = asmText;
+    contentEl.textContent = lines.join('\n');
 }
 
 function initAIAssistant(pefile) {
