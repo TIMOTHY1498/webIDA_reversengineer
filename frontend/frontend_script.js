@@ -5,6 +5,7 @@ let pefile = null;
 let rizinRuntimePromise = null;
 let rizinSession = null;
 let rizin_session = null;
+let loaded_pe_functions = [];
 
 function rvaToOffset(pefile, rva) {
     if (rva === 0) return 0;
@@ -79,10 +80,22 @@ function freeCString(runtime, ptr) {
     }
 }
 
-async function getRizinDisassembly(arrayBuffer, pefile = null) {
-    
+async function getRizinDisassembly(functionAddress) {
 
-    return null;
+    await ensureRizinRuntime();
+    if (!rizin_session) return null;
+    try {
+        const cmd = Module.cwrap('rzweb_cmd', 'string', ['number', 'string']);
+        // Prefer `pdf` (print disasm for function) if available, fall back to `pd`.
+        let out = cmd(rizin_session, `pdf @ ${functionAddress}`);
+        if (!out || out.trim() === '') {
+            out = cmd(rizin_session, `pd 256 @ ${functionAddress}`);
+        }
+        return out || '';
+    } catch (err) {
+        console.error('getRizinDisassembly error:', err);
+        return null;
+    }
 }
 
 window.addEventListener('DOMContentLoaded', () => {
@@ -121,39 +134,20 @@ window.addEventListener('DOMContentLoaded', () => {
                         toolbarFiletype.textContent = pefile.is32Bit ? "PE32 (32-bit)" : "PE32+ (64-bit)";
                     }
 
-                    rizin_session = Module._rzweb_create_session();
-                    if (!rizin_session) {
-                        throw new Error("[error] Rizin session creation failed");
-                    } 
+                    rizin_session = Module.cwrap('rzweb_create_session', 'number', []);
+                    rizin_session = rizin_session();
 
-                    let dataPtraaa = Module._malloc(pefile.arrayBuffer.length + 1);
-                    Module.HEAPU8.set(pefile.arrayBuffer, dataPtraaa);
-                    Module.HEAPU8[dataPtraaa + pefile.arrayBuffer.length] = 0;  
+                    let openFIle67 = Module.cwrap('rzweb_open_file', 'number', ['number', 'string', 'number', 'number']);
+                    let cmd67 = Module.cwrap('rzweb_cmd', 'string', ['number', 'string']);
 
-                    let filenamePtraaa = Module._malloc(pefile.fileName.length + 1);
+                    openFIle67(rizin_session, pefile.name, 0, pefile.arrayBuffer.byteLength);
+                    cmd67(rizin_session, "aaa");
 
-                    stringToUTF8(pefile.fileName, filenamePtraaa, pefile.fileName.length + 1);
-                    Module._rzweb_open_file(rizin_session, dataPtraaa, pefile.arrayBuffer.length, filenamePtraaa);
-                    Module._free(filenamePtraaa);
+                    loaded_pe_functions = cmd67(rizin_session, "aflt");
 
-                    let toolbarEntrypoint = document.getElementById('toolbar-entrypoint');
-                    if (toolbarEntrypoint && pefile.exe && pefile.exe.newHeader) {
-                        const ep = pefile.exe.newHeader.optionalHeader.addressOfEntryPoint;
-                        toolbarEntrypoint.textContent = '0x' + ep.toString(16).toUpperCase();
-                    }
-
-                    let cmd = "aaa; afl; pdf";
-                    let cmdPtr = Module._malloc(cmd.length + 1);
-                    stringToUTF8(cmd, cmdPtr, cmd.length + 1);
-
-                    let resultPtr = Module._rzweb_cmd(rizin_session, cmdPtr);
-                    let result = UTF8ToString(resultPtr);
-
-                    renderDisassembly(result);
-                    Module._free(cmdPtr);
-                    Module._free(resultPtr);
-
-                    populateViews(pefile);
+                    loaded_pe_functions.forEach((qss, vl) => {
+                        console.log(qss);
+                    })
                 } catch (err) {
                     console.error("Error parsing PE file:", err);
                     alert("Error parsing PE file: " + err.message);
