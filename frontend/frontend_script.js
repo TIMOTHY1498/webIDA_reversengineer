@@ -122,6 +122,8 @@ window.addEventListener('DOMContentLoaded', () => {
 
                     // do rizin stuff here
 
+                    document.getElementById('functions-list').innerHTML = '';
+
                     let createSession = Module.cwrap('rzweb_create_session', 'number', []);
                     if (!rizin_session) {
                         rizin_session = createSession();
@@ -152,7 +154,7 @@ window.addEventListener('DOMContentLoaded', () => {
                         document.getElementById('functions-list').appendChild(funcButton);
                     }
 
-                    document.getElementById('functions-count').textContent = `${loaded_pe_functions.length} functions`;
+                    document.getElementById('functions-count').textContent = `${loaded_pe_functions.length}`;
 
                     populateViews(pefile);
                 } catch (err) {
