@@ -1,9 +1,3 @@
-/* ==========================================================================
-   WebIDA Design System & Styling
-   Themes: Classic Light (Ghidra/IDA Default) & Cyber Dark (ImHex/Hexer)
-   ========================================================================== */
-
-/* Design Tokens & Variables */
 :root {
   --font-ui: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   --font-code: 'JetBrains Mono', 'Fira Code', 'Courier New', Courier, monospace;

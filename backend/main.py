@@ -23,7 +23,7 @@ def get_ai_response(message: str) -> str:
         ai_response = response.json()
         return ai_response['choices'][0]['text'].strip()
     else:
-        return f"Error: {response.status_code} - {response.text}"
+        return f"[error] {response.status_code} - {response.text}"
 
 @app.websocket("/chatwithAI")
 async def chat_with_ai(websocket: WebSocket):
@@ -35,4 +35,4 @@ async def chat_with_ai(websocket: WebSocket):
             ai_response = get_ai_response(data)
             await websocket.send_text(ai_response)
     except WebSocketDisconnect:
-        print("Client disconnected")
+        print("[info] client disconnected")

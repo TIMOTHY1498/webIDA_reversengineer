@@ -141,6 +141,19 @@ window.addEventListener('DOMContentLoaded', () => {
                     loaded_pe_functions = afljResult ? JSON.parse(afljResult) : [];
                     console.log(loaded_pe_functions);
 
+                    for (const func of loaded_pe_functions) {
+                        const funcButton = document.createElement('button');
+                        funcButton.className = 'btnfunc';
+                        funcButton.textContent = `${func.name} @ 0x${func.offset.toString(16).toUpperCase()}`;
+                        funcButton.addEventListener('click', () => {
+                            const disasmResult = rzweb_cmd(rizin_session, `pdf @ ${func.offset}`);
+                            renderDisassembly(disasmResult);
+                        });
+                        document.getElementById('functions-list').appendChild(funcButton);
+                    }
+
+                    document.getElementById('functions-count').textContent = `${loaded_pe_functions.length} functions`;
+
                     populateViews(pefile);
                 } catch (err) {
                     console.error("Error parsing PE file:", err);
