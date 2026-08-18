@@ -15,11 +15,11 @@ The binaries are provided **solely for research, testing, and educational purpos
 - View PE Headers (MS-DOS Header, COFF Header, Optional Header, Data Directories)
 - Hex Viewer (Read-only)
 - View Sections
+- Working dissasmbler viewer (Powered with [IndAlok/rzwasi](https://github.com/IndAlok/rzwasi))
 
 ## Expected Features 
 
 - Working AI Assistant
-- Working dissasmbler viewer (Powered with [IndAlok/rzwasi](https://github.com/IndAlok/rzwasi))
 
 ## Tech Stack
 
@@ -34,6 +34,7 @@ The binaries are provided **solely for research, testing, and educational purpos
 - [requests] Python requst library
 - [fastapi] Python backend
 - [pelib_JS](https://github.com/TIMOTHY1498/pelib_js_client_TEST) Modified version of pe-library for JS to use in client side.
+- [rzwasi](https://github.com/IndAlok/rzwasi) Rizin WASM Version for doing client-side dissambely
 
 ## Working Test Binaries (Parser)
 
