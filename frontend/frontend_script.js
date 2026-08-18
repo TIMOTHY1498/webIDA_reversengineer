@@ -79,12 +79,6 @@ function freeCString(runtime, ptr) {
     }
 }
 
-async function getRizinDisassembly(arrayBuffer, pefile = null) {
-
-
-    return null;
-}
-
 window.addEventListener('DOMContentLoaded', () => {
     const peFileInput = document.getElementById('pe-file-input');
     if (peFileInput) {
@@ -155,6 +149,8 @@ window.addEventListener('DOMContentLoaded', () => {
                     }
 
                     document.getElementById('functions-count').textContent = `${loaded_pe_functions.length}`;
+                    const entryPoint = '0x' + (pefile.exe.newHeader.optionalHeader.imageBase + pefile.exe.newHeader.optionalHeader.addressOfEntryPoint).toString(16).toUpperCase();
+                    document.getElementById('toolbar-entrypoint').textContent = entryPoint;
 
                     populateViews(pefile);
                 } catch (err) {
@@ -215,6 +211,7 @@ async function populateViews(pefile) {
     renderHexViewer(pefile);
     renderPEHeaders(pefile, 'dos-header');
     renderImportsAndExports(pefile);
+    renderSummary(pefile);
     // await renderDisassembly(pefile);
     // renderSectionBand(pefile);
     // renderFunctionsList(pefile);
@@ -668,5 +665,115 @@ Ask me to analyze functions, look up imports/exports, or check security mitigati
 }
 
 function renderSummary(pefile) {
-    return;
+    const summaryContent = document.querySelector('#tab-summary .summary-content');
+    if (!summaryContent || !pefile) return;
+
+    const exe = pefile.exe;
+    const dos = exe.dosHeader;
+    const nt = exe.newHeader;
+    const fileHeader = nt.fileHeader;
+    const optHeader = nt.optionalHeader;
+    const sections = exe.getAllSections();
+
+    let machineStr = 'Unknown';
+    if (fileHeader.machine === 0x8664) machineStr = 'AMD64 (x86-64)';
+    else if (fileHeader.machine === 0x14c) machineStr = 'i386 (x86)';
+    else if (fileHeader.machine === 0xaa64) machineStr = 'ARM64';
+
+    const fileSize = pefile.dataView.byteLength;
+    const timestamp = new Date(fileHeader.timeDateStamp * 1000).toUTCString();
+    const entryPoint = '0x' + (optHeader.imageBase + optHeader.addressOfEntryPoint).toString(16).toUpperCase();
+    
+    summaryContent.innerHTML = `
+        <div class="summary-grid">
+            <div class="summary-section">
+                <h3>File Information</h3>
+                <table class="summary-table">
+                    <tr>
+                        <td class="label">Filename:</td>
+                        <td class="value"><code>${escapeHtml(pefile.fileName)}</code></td>
+                    </tr>
+                    <tr>
+                        <td class="label">File Size:</td>
+                        <td class="value">${(fileSize / 1024).toFixed(2)} KB</td>
+                    </tr>
+                    <tr>
+                        <td class="label">Format:</td>
+                        <td class="value">${pefile.is32Bit ? 'PE32 (32-bit)' : 'PE32+ (64-bit)'}</td>
+                    </tr>
+                    <tr>
+                        <td class="label">Machine:</td>
+                        <td class="value">${machineStr}</td>
+                    </tr>
+                    <tr>
+                        <td class="label">Timestamp:</td>
+                        <td class="value">${timestamp}</td>
+                    </tr>
+                </table>
+            </div>
+
+            <div class="summary-section">
+                <h3>Memory Layout</h3>
+                <table class="summary-table">
+                    <tr>
+                        <td class="label">Image Base:</td>
+                        <td class="value"><code>0x${optHeader.imageBase.toString(16).toUpperCase()}</code></td>
+                    </tr>
+                    <tr>
+                        <td class="label">Entry Point (RVA):</td>
+                        <td class="value"><code>0x${optHeader.addressOfEntryPoint.toString(16).toUpperCase()}</code></td>
+                    </tr>
+                    <tr>
+                        <td class="label">Entry Point (VA):</td>
+                        <td class="value"><code>${entryPoint}</code></td>
+                    </tr>
+                    <tr>
+                        <td class="label">Image Size:</td>
+                        <td class="value">${(optHeader.sizeOfImage / 1024).toFixed(2)} KB</td>
+                    </tr>
+                    <tr>
+                        <td class="label">Section Alignment:</td>
+                        <td class="value">0x${optHeader.sectionAlignment.toString(16).toUpperCase()}</td>
+                    </tr>
+                </table>
+            </div>
+
+            <div class="summary-section">
+                <h3>Statistics</h3>
+                <table class="summary-table">
+                    <tr>
+                        <td class="label">Sections:</td>
+                        <td class="value">${fileHeader.numberOfSections}</td>
+                    </tr>
+                    <tr>
+                        <td class="label">Functions:</td>
+                        <td class="value">${loaded_pe_functions.length}</td>
+                    </tr>
+                    <tr>
+                        <td class="label">Linker Version:</td>
+                        <td class="value">${optHeader.majorLinkerVersion}.${optHeader.minorLinkerVersion}</td>
+                    </tr>
+                    <tr>
+                        <td class="label">Subsystem:</td>
+                        <td class="value">${optHeader.subsystem === 3 ? 'Windows CUI' : optHeader.subsystem === 2 ? 'Windows GUI' : optHeader.subsystem}</td>
+                    </tr>
+                </table>
+            </div>
+
+            <div class="summary-section">
+                <h3>Sections</h3>
+                <table class="summary-table">
+                    ${sections.map(sec => `
+                        <tr>
+                            <td class="label"><code>${sec.info.name}</code></td>
+                            <td class="value">
+                                VA: 0x${sec.info.virtualAddress.toString(16).toUpperCase()} 
+                                | Size: 0x${sec.info.virtualSize.toString(16).toUpperCase()}
+                            </td>
+                        </tr>
+                    `).join('')}
+                </table>
+            </div>
+        </div>
+    `;
 }
