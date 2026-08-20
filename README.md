@@ -31,7 +31,7 @@ The binaries are provided **solely for research, testing, and educational purpos
 
 ## Dependencies 
 
-- [requests] Python requst library
+- [groq] Python Groq AI library
 - [fastapi] Python backend
 - [pelib_JS](https://github.com/TIMOTHY1498/pelib_js_client_TEST) Modified version of pe-library for JS to use in client side.
 - [rzwasi](https://github.com/IndAlok/rzwasi) Rizin WASM Version for doing client-side dissambely
