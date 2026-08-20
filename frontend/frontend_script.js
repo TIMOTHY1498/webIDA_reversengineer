@@ -652,7 +652,11 @@ function initAIAssistant(pefile) {
         // appendTerminalLine(`User: ${prompt || actionType}`, 'user-line');
 
         // appendTerminalLine(`Analyzing target binary for: ${actionType}...`, 'user-line');
-        if (!pefile?.exe) return null;
+        // if (!pefile) return null;
+        // if (!selected_pe_function && actionType !== 'custom') {
+        //     appendTerminalLine("Please select a function from the functions list first.", 'error-line');
+        //     return;
+        // }
 
         const request = {
             message: prompt || actionType,
