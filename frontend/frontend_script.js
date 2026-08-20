@@ -5,6 +5,9 @@ let pefile = null;
 let rizinRuntimePromise = null;
 let rizin_session = null;
 let loaded_pe_functions = [];
+let selected_pe_function = null;
+
+let AI_TESTSERVER_LOCAL = "http://127.0.0.1:8000/chatwithAI"; // for local testing
 
 function rvaToOffset(pefile, rva) {
     if (rva === 0) return 0;
@@ -101,6 +104,7 @@ window.addEventListener('DOMContentLoaded', () => {
                 try {
                     let pefile = await Main(data);
 
+                    selected_pe_function = null;
                     pefile.fileName = file.name;
                     pefile.arrayBuffer = Uint8Array.from(data, (c) => c.charCodeAt(0)).buffer;
                     pefile.dataView = new DataView(pefile.arrayBuffer);
@@ -142,6 +146,11 @@ window.addEventListener('DOMContentLoaded', () => {
                         funcButton.className = 'btnfunc';
                         funcButton.textContent = `${func.name} @ 0x${func.offset.toString(16).toUpperCase()}`;
                         funcButton.addEventListener('click', () => {
+                            selected_pe_function = func;
+                            const selectedTarget = document.getElementById('ai-selected-target');
+                            if (selectedTarget) {
+                                selectedTarget.textContent = `${func.name} (0x${func.offset.toString(16).toUpperCase()})`;
+                            }
                             const disasmResult = rzweb_cmd(rizin_session, `pdf @ ${func.offset}`);
                             renderDisassembly(disasmResult);
                         });
@@ -616,25 +625,63 @@ function initAIAssistant(pefile) {
         terminal.scrollTop = terminal.scrollHeight;
     }
 
-    function handleAIQuery(actionType) {
-        if (!pefile) {
-            appendTerminalLine("Please load a PE file first.", 'error-line');
-            return;
+    function getParsedMetadata() {
+        if (!pefile?.exe) return null;
+
+        const fileHeader = pefile.exe.newHeader.fileHeader;
+        const optionalHeader = pefile.exe.newHeader.optionalHeader;
+        return {
+            fileName: pefile.fileName,
+            fileSize: pefile.dataView?.byteLength,
+            architecture: pefile.is32Bit ? "PE32 (32-bit)" : "PE32+ (64-bit)",
+            machine: fileHeader.machine,
+            numberOfSections: fileHeader.numberOfSections,
+            timestamp: fileHeader.timeDateStamp,
+            imageBase: optionalHeader.imageBase,
+            entryPointRva: optionalHeader.addressOfEntryPoint,
+            sections: pefile.exe.getAllSections().map(section => section.info)
+        };
+    }
+
+    async function handleAIQuery(actionType, prompt = '') {
+        // if (pefile == null) {
+        //     appendTerminalLine("Please load a PE file first.", 'error-line');
+        //     return;
+        // }
+
+        // appendTerminalLine(`User: ${prompt || actionType}`, 'user-line');
+
+        // appendTerminalLine(`Analyzing target binary for: ${actionType}...`, 'user-line');
+        if (!pefile?.exe) return null;
+
+        const request = {
+            message: prompt || actionType,
+            action: actionType,
+            selected_function: selected_pe_function,
+            metadata: getParsedMetadata()
+        };
+
+        try {
+            const response = await fetch(AI_TESTSERVER_LOCAL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(request)
+            });
+            
+            const responseText = await response.text();
+            let responseBody;
+            try {
+                responseBody = JSON.parse(responseText);
+            } catch {
+                responseBody = responseText;
+            }
+            if (!response.ok) {
+                throw new Error(typeof responseBody === 'string' ? responseBody : JSON.stringify(responseBody));
+            }
+            appendTerminalLine(`[AI Assistant]: ${typeof responseBody === 'string' ? responseBody : responseBody.response ?? JSON.stringify(responseBody)}`, 'system-line');
+        } catch (error) {
+            appendTerminalLine(`AI request failed: ${error.message}`, 'error-line');
         }
-
-        appendTerminalLine(`Analyzing target binary for: ${actionType}...`, 'user-line');
-
-        setTimeout(() => {
-            const exe = pefile.exe;
-            const fileHeader = exe.newHeader.fileHeader;
-            const is32 = pefile.is32Bit;
-            const arch = is32 ? "PE32 (32-bit)" : "PE32+ (64-bit)";
-
-            let response = `[AI Assistant]: I am analyzing the loaded PE file (${arch}). It has ${fileHeader.numberOfSections} sections: ${pefile.exe.getAllSections().map(s => s.info.name).join(", ")}.
-Ask me to analyze functions, look up imports/exports, or check security mitigations!`;
-
-            appendTerminalLine(response, 'system-line');
-        }, 800);
     }
 
     const newExplainBtn = explainBtn.cloneNode(true);
@@ -653,7 +700,7 @@ Ask me to analyze functions, look up imports/exports, or check security mitigati
         if (!text) return;
         appendTerminalLine(`User: ${text}`, 'user-line');
         promptInput.value = "";
-        handleAIQuery('custom');
+        handleAIQuery('custom', text);
     }
 
     newSendBtn.addEventListener('click', sendCustomPrompt);

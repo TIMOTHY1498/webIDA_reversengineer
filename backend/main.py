@@ -1,38 +1,72 @@
 import os
-import requests
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+from wsgiref import headers
+from groq import Groq
+from fastapi import FastAPI
+from pydantic import BaseModel
+from typing import Optional
+from dotenv import load_dotenv
 
+load_dotenv() 
 app = FastAPI()
 
+class AIRequest(BaseModel):
+    message: str
+    action: Optional[str] = None
+    selected_function: Optional[dict] = None
+    metadata: Optional[dict] = None
+
+from fastapi.middleware.cors import CORSMiddleware
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+    ],
+    allow_methods=["POST", "OPTIONS"],
+    allow_headers=["Content-Type"],
+)
+
 def get_ai_response(message: str) -> str:
-    api_url = "https://generativeai.googleapis.com/v1beta2/models/text-bison-001:generateText"
-    api_key = os.getenv("GOOGLE_GENERATIVE_AI_API_KEY")
+    KEY = os.getenv("GENERATIVE_AI_KEY")
 
-    headers = {
-        "Content-Type": "application/json",
-        "Authorization": f"Bearer {api_key}"
-    }
+    client = Groq(api_key=KEY)
 
-    payload = {
-        "prompt": message,
-        "max_tokens": 150
-    }
+    completion = client.chat.completions.create(
+        model="openai/gpt-oss-120b",
+        messages=[
+            {
+                "role": "user",
+                "content": message
+            }
+        ],
+        temperature=1,
+        max_completion_tokens=2048,
+        top_p=1,
+        reasoning_effort="medium",
+        stream=True,
+        stop=None
+    )
 
-    response = requests.post(api_url, headers=headers, json=payload)
-    if response.status_code == 200:
-        ai_response = response.json()
-        return ai_response['choices'][0]['text'].strip()
-    else:
-        return f"[error] {response.status_code} - {response.text}"
+    result = ""
 
-@app.websocket("/chatwithAI")
-async def chat_with_ai(websocket: WebSocket):
-    await websocket.accept()
-    try:
-        while True:
-            data = await websocket.receive_text()
-            # Send the received message to the AI model and get the response
-            ai_response = get_ai_response(data)
-            await websocket.send_text(ai_response)
-    except WebSocketDisconnect:
-        print("[info] client disconnected")
+    for chunk in completion:
+        content = chunk.choices[0].delta.content
+
+        if content:
+            print(content, end="", flush=True)
+            result += content
+
+    return result
+
+@app.post("/chatwithAI")
+async def chat_with_ai(request: AIRequest):
+    context = [f"User request: {request.message}"]
+    if request.action:
+        context.append(f"Action: {request.action}")
+    if request.selected_function:
+        context.append(f"Selected function: {request.selected_function}")
+    if request.metadata:
+        context.append(f"Parsed PE metadata: {request.metadata}")
+
+    return get_ai_response("\n".join(context))
